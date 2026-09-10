@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Stroke-drawn on a 24x24 grid, so they stay identical on every platform.
+         Emoji glyphs would not: each OS ships its own artwork. -->
+
+    <StreamGeometry x:Key="IconMail">M3 6 L21 6 L21 18 L3 18 Z M3 6.5 L12 13 L21 6.5</StreamGeometry>
+    <StreamGeometry x:Key="IconSearch">M11 4 A7 7 0 1 0 11 18 A7 7 0 1 0 11 4 M16 16 L21 21</StreamGeometry>
+    <StreamGeometry x:Key="IconRefresh">M20 12 A8 8 0 1 1 17.2 6 M20 3 L20 7 L16 7</StreamGeometry>
+    <StreamGeometry x:Key="IconExport">M12 3 L12 14 M8 10.5 L12 14.5 L16 10.5 M4 19 L20 19</StreamGeometry>
+    <StreamGeometry x:Key="IconTrash">M4 6 L20 6 M9.5 6 L9.5 3.5 L14.5 3.5 L14.5 6 M6 6 L7 20.5 L17 20.5 L18 6</StreamGeometry>
+    <StreamGeometry x:Key="IconEye">M2 12 C5 7.5 8.5 5.5 12 5.5 C15.5 5.5 19 7.5 22 12 C19 16.5 15.5 18.5 12 18.5 C8.5 18.5 5 16.5 2 12 Z M12 9 A3 3 0 1 0 12.01 9</StreamGeometry>
+    <StreamGeometry x:Key="IconClick">M6 3 L19.5 11.5 L13 12.5 L16.5 19.5 L14 20.5 L10.5 13.5 L6 17.5 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconCopy">M9 8.5 L20 8.5 L20 20 L9 20 Z M5.5 15.5 L4 15.5 L4 4 L15.5 4 L15.5 5.5</StreamGeometry>
+    <StreamGeometry x:Key="IconInfo">M12 3.5 A8.5 8.5 0 1 0 12.01 3.5 M12 11 L12 16.5 M12 7.8 L12 8.6</StreamGeometry>
+    <StreamGeometry x:Key="IconChevronDown">M6.5 9.5 L12 15 L17.5 9.5</StreamGeometry>
+    <StreamGeometry x:Key="IconStop">M7 7 L17 7 L17 17 L7 17 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconPlay">M8.5 5 L19 12 L8.5 19 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconExternal">M14 4 L20 4 L20 10 M20 4 L11.5 12.5 M17.5 14 L17.5 20 L4 20 L4 6 L10 6</StreamGeometry>
+    <StreamGeometry x:Key="IconPlus">M12 5.5 L12 18.5 M5.5 12 L18.5 12</StreamGeometry>
+    <StreamGeometry x:Key="IconPaperclip">M17 8 L10 15 A2.8 2.8 0 0 0 14 19 L19.5 13.5 A5 5 0 0 0 12.5 6.5 L6.5 12.5</StreamGeometry>
+    <StreamGeometry x:Key="IconCheck">M5 12.5 L10 17.5 L19 6.5</StreamGeometry>
+    <StreamGeometry x:Key="IconLayout">M3.5 4.5 L20.5 4.5 L20.5 19.5 L3.5 19.5 Z M9.5 4.5 L9.5 19.5</StreamGeometry>
+    <StreamGeometry x:Key="IconLink">M10 14 A4 4 0 0 0 15.5 14 L18.5 11 A4 4 0 0 0 13 5.5 L11.5 7 M14 10 A4 4 0 0 0 8.5 10 L5.5 13 A4 4 0 0 0 11 18.5 L12.5 17</StreamGeometry>
+
+</ResourceDictionary>

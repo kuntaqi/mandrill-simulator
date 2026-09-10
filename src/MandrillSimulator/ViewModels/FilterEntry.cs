@@ -15,6 +15,13 @@ public class FilterEntry : ObservableObject
     public FilterKind Kind { get; }
     public string? Value { get; }
 
+    // Drives the small colour square in the rail; "" means no square (All messages).
+    public string DotState => Kind == FilterKind.State ? Value ?? string.Empty : string.Empty;
+
+    public bool HasDot => Kind == FilterKind.State;
+
+    public bool IsUntagged => Value == "(untagged)";
+
     public int Count
     {
         get => _count;

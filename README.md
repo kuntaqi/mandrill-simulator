@@ -38,9 +38,16 @@ Details that matter if you are comparing against the real API:
 
 ## Requirements
 
-- Windows
-- [.NET 10 desktop runtime](https://dotnet.microsoft.com/download) — or publish self-contained, below
-- WebView2 runtime (present on current Windows; only the HTML preview needs it)
+Windows, macOS and Linux. The UI is [Avalonia](https://avaloniaui.net/), so one codebase covers all
+three.
+
+- [.NET 10 SDK or runtime](https://dotnet.microsoft.com/download) — or publish self-contained, below
+- The HTML preview uses the platform's own web engine, nothing bundled:
+  - **Windows** — WebView2 runtime (present on current Windows)
+  - **macOS** — WKWebView, part of the OS
+  - **Linux** — WebKitGTK: `sudo apt install libwebkit2gtk-4.1-0` (or your distro's equivalent).
+    Without it, the app still runs and the Preview tab explains itself; the HTML source tab and
+    every API behaviour are unaffected.
 
 ## Running it
 
@@ -50,14 +57,16 @@ dotnet run --project src/MandrillSimulator
 
 The listener starts automatically on `http://localhost:8025/`. Change the port in the rail.
 
-To hand a colleague a copy that needs no .NET runtime installed:
+To hand a colleague a copy that needs no .NET runtime installed, publish for their platform:
 
 ```
-dotnet publish src/MandrillSimulator -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
+dotnet publish src/MandrillSimulator -c Release -r win-x64   --self-contained -o publish/win
+dotnet publish src/MandrillSimulator -c Release -r osx-arm64 --self-contained -o publish/mac
+dotnet publish src/MandrillSimulator -c Release -r linux-x64 --self-contained -o publish/linux
 ```
 
-That produces a ~126 MB `MandrillSimulator.exe` plus a handful of native WPF and WebView2 libraries
-that cannot be bundled into the executable — zip the whole `publish` folder, not just the exe.
+Adding `-p:PublishSingleFile=true` folds most of it into one binary, but a few native libraries
+cannot be embedded — zip the whole output folder, not just the executable.
 
 ## Pointing an application at it
 
@@ -93,16 +102,24 @@ external navigation blocked.
 
 ## Layout
 
+The simulator proper is a plain `net10.0` library with no UI dependency, so it builds and is tested
+on every platform; only the thin Avalonia layer above it draws anything.
+
 ```
-src/MandrillSimulator
+src/MandrillSimulator.Core     net10.0 — no UI dependency
   Api/         HTTP listener, routing, one class per endpoint
   Store/       Captured messages and export jobs
   Models/      Message, attachment, settings types
   Services/    Config connector, settings, sample sender
+src/MandrillSimulator          Avalonia desktop app
   ViewModels/  Inbox state and commands
-tests/         Endpoint and path-normalisation tests
+  Themes/      Colour tokens and the icon set
+  Converters/  Chip colours, file sizes, visibility
+tests/                         Endpoint and path-normalisation tests
 ```
 
 ```
 dotnet test
 ```
+
+CI builds and runs the suite on Ubuntu, macOS and Windows — see `.github/workflows/build.yml`.

@@ -1,8 +1,6 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.IO;
-using System.Windows;
-using System.Windows.Data;
+using System.Text;
+using Avalonia.Threading;
 using MandrillSimulator.Api;
 using MandrillSimulator.Models;
 using MandrillSimulator.Services;
@@ -18,16 +16,26 @@ public class MainViewModel : ObservableObject
     private readonly ConfigConnector _connector = new();
     private readonly SampleMessageSender _sampleSender = new();
     private readonly SimulatorServer _server;
+    private readonly List<CapturedMessage> _all = [];
+    private readonly DispatcherTimer _uptimeTimer;
 
     private SimulatorSettings _settings = new();
     private CapturedMessage? _selectedMessage;
-    private FilterEntry _selectedFilter;
+    private FilterEntry _selectedStateFilter;
+    private FilterEntry? _selectedTagFilter;
+    private DateTimeOffset? _startedAt;
     private string _searchText = string.Empty;
     private string _lastRequestText = "No requests yet";
     private string _statusMessage = string.Empty;
+    private string _uptime = string.Empty;
+    private string _bounceReasonDraft = string.Empty;
     private int _port = 8025;
     private bool _isRunning;
     private bool _isDarkTheme;
+    private bool _autoSelectNewest = true;
+    private bool _newestFirst = true;
+    private bool _showSidebar = true;
+    private bool _showMessageList = true;
 
     public MainViewModel()
     {
@@ -38,12 +46,12 @@ public class MainViewModel : ObservableObject
         _store.MessageAdded += (_, message) => OnUi(() => AddMessage(message));
         _store.Cleared += (_, _) => OnUi(ResetMessages);
 
-        Filters =
+        StateFilters =
         [
             new FilterEntry("All messages", FilterKind.All),
             .. MessageStates.All.Select(s => new FilterEntry(Humanise(s), FilterKind.State, MessageStates.ToWire(s)))
         ];
-        _selectedFilter = Filters[0];
+        _selectedStateFilter = StateFilters[0];
 
         TagFilters = [];
 
@@ -56,23 +64,34 @@ public class MainViewModel : ObservableObject
             new EndpointHit("/rejects/delete.json")
         ];
 
-        MessagesView = CollectionViewSource.GetDefaultView(Messages);
-        MessagesView.Filter = FilterMessage;
-        MessagesView.SortDescriptions.Add(new SortDescription(nameof(CapturedMessage.ReceivedAt),
-            ListSortDirection.Descending));
+        _uptimeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _uptimeTimer.Tick += (_, _) => Raise(nameof(UptimeText));
 
         StartServerCommand = new RelayCommand(_ => StartServer(), _ => !IsRunning);
         StopServerCommand = new RelayCommand(_ => StopServer(), _ => IsRunning);
+        ToggleServerCommand = new RelayCommand(_ =>
+        {
+            if (IsRunning) StopServer();
+            else StartServer();
+        });
         ClearAllCommand = new RelayCommand(_ => _store.Clear());
-        SimulateOpenCommand = new RelayCommand(_ => Bump(m => m.Opens++), _ => SelectedMessage is not null);
-        SimulateClickCommand = new RelayCommand(_ => Bump(m => m.Clicks++), _ => SelectedMessage is not null);
+        RefreshCommand = new RelayCommand(_ => ApplyFilter());
+        ToggleSortCommand = new RelayCommand(_ =>
+        {
+            NewestFirst = !NewestFirst;
+            ApplyFilter();
+        });
+        SimulateOpenCommand = new RelayCommand(_ => Bump(m => m.Opens++), _ => HasSelection);
+        SimulateClickCommand = new RelayCommand(_ => Bump(m => m.Clicks++), _ => HasSelection);
         ResetCountersCommand = new RelayCommand(_ => Bump(m =>
         {
             m.Opens = 0;
             m.Clicks = 0;
-        }), _ => SelectedMessage is not null);
-        SetStateCommand = new RelayCommand(SetState, _ => SelectedMessage is not null);
+        }), _ => HasSelection);
+        SetStateCommand = new RelayCommand(SetState, _ => HasSelection);
+        ApplyBounceReasonCommand = new RelayCommand(_ => ApplyBounceReason(), _ => HasSelection);
         SendSampleCommand = new RelayCommand(async _ => await SendSampleAsync(), _ => IsRunning);
+        ResendCommand = new RelayCommand(async _ => await ResendAsync(), _ => HasSelection && IsRunning);
         FailNextRequestCommand = new RelayCommand(_ =>
         {
             _server.FailNextRequest = true;
@@ -80,39 +99,78 @@ public class MainViewModel : ObservableObject
         });
         ConnectProjectCommand = new RelayCommand(async parameter => await ConnectAsync(parameter));
         DisconnectProjectCommand = new RelayCommand(async parameter => await DisconnectAsync(parameter));
-        SaveAttachmentCommand = new RelayCommand(SaveAttachment);
+        SaveAttachmentCommand = new RelayCommand(p =>
+        {
+            if (p is CapturedAttachment attachment) SaveAttachmentRequested?.Invoke(this, attachment);
+        });
+        ExportSessionCommand = new RelayCommand(_ => ExportSessionRequested?.Invoke(this, BuildSessionExport()));
     }
 
     public ObservableCollection<CapturedMessage> Messages { get; } = [];
-    public ICollectionView MessagesView { get; }
-    public ObservableCollection<FilterEntry> Filters { get; }
+    public ObservableCollection<FilterEntry> StateFilters { get; }
     public ObservableCollection<FilterEntry> TagFilters { get; }
     public ObservableCollection<EndpointHit> EndpointHits { get; }
     public ObservableCollection<ConnectedProject> ConnectedProjects { get; } = [];
 
     public RelayCommand StartServerCommand { get; }
     public RelayCommand StopServerCommand { get; }
+    public RelayCommand ToggleServerCommand { get; }
     public RelayCommand ClearAllCommand { get; }
+    public RelayCommand RefreshCommand { get; }
+    public RelayCommand ToggleSortCommand { get; }
     public RelayCommand SimulateOpenCommand { get; }
     public RelayCommand SimulateClickCommand { get; }
     public RelayCommand ResetCountersCommand { get; }
     public RelayCommand SetStateCommand { get; }
+    public RelayCommand ApplyBounceReasonCommand { get; }
     public RelayCommand SendSampleCommand { get; }
+    public RelayCommand ResendCommand { get; }
     public RelayCommand FailNextRequestCommand { get; }
     public RelayCommand ConnectProjectCommand { get; }
     public RelayCommand DisconnectProjectCommand { get; }
     public RelayCommand SaveAttachmentCommand { get; }
+    public RelayCommand ExportSessionCommand { get; }
+
+    public event EventHandler<CapturedMessage?>? SelectionChanged;
+    public event EventHandler<bool>? ThemeChanged;
+    public event EventHandler<CapturedAttachment>? SaveAttachmentRequested;
+    public event EventHandler<string>? ExportSessionRequested;
 
     public IReadOnlyList<string> AvailableStates { get; } =
         MessageStates.All.Select(MessageStates.ToWire).ToList();
 
     public string ListeningUrl => _server.BaseUrl;
 
-    public string ConfigHint => $"\"MandrillBaseUrl\": \"{_server.BaseUrl}\"";
+    public string ShortUrl => $"http://localhost:{Port}";
 
-    public int MessageCount => Messages.Count;
+    public string VersionText => "v0.2.0 · .NET 10";
 
-    public bool HasMessages => Messages.Count > 0;
+    public string StoreText => "Store: in-memory (this session)";
+
+    public int MessageCount => _all.Count;
+
+    public string MessageCountText => _all.Count == 1 ? "1 message" : $"{_all.Count} messages";
+
+    public string CapturedText =>
+        $"{_all.Count} captured · {(NewestFirst ? "newest first" : "oldest first")}";
+
+    public bool HasMessages => _all.Count > 0;
+
+    public string ListeningStatusText => IsRunning
+        ? $"Listening on http://127.0.0.1:{Port}"
+        : "Server stopped";
+
+    public string UptimeText
+    {
+        get
+        {
+            if (!IsRunning || _startedAt is null) return string.Empty;
+            var elapsed = DateTimeOffset.Now - _startedAt.Value;
+            return elapsed.TotalHours >= 1
+                ? $"up {(int)elapsed.TotalHours}h {elapsed.Minutes:00}m"
+                : $"up {elapsed.Minutes}m {elapsed.Seconds:00}s";
+        }
+    }
 
     public bool IsRunning
     {
@@ -121,9 +179,12 @@ public class MainViewModel : ObservableObject
         {
             if (!Set(ref _isRunning, value)) return;
             Raise(nameof(ServerStatusText));
+            Raise(nameof(ListeningStatusText));
+            Raise(nameof(UptimeText));
             StartServerCommand.RaiseCanExecuteChanged();
             StopServerCommand.RaiseCanExecuteChanged();
             SendSampleCommand.RaiseCanExecuteChanged();
+            ResendCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -136,7 +197,8 @@ public class MainViewModel : ObservableObject
         {
             if (!Set(ref _port, value)) return;
             Raise(nameof(ListeningUrl));
-            Raise(nameof(ConfigHint));
+            Raise(nameof(ShortUrl));
+            Raise(nameof(ListeningStatusText));
         }
     }
 
@@ -148,8 +210,38 @@ public class MainViewModel : ObservableObject
             if (!Set(ref _isDarkTheme, value)) return;
             _settings.DarkTheme = value;
             ThemeChanged?.Invoke(this, value);
-            _ = _settingsService.SaveAsync(_settings);
         }
+    }
+
+    public bool AutoSelectNewest
+    {
+        get => _autoSelectNewest;
+        set
+        {
+            if (!Set(ref _autoSelectNewest, value)) return;
+            _settings.AutoSelectNewest = value;
+        }
+    }
+
+    public bool NewestFirst
+    {
+        get => _newestFirst;
+        set
+        {
+            if (Set(ref _newestFirst, value)) Raise(nameof(CapturedText));
+        }
+    }
+
+    public bool ShowSidebar
+    {
+        get => _showSidebar;
+        set => Set(ref _showSidebar, value);
+    }
+
+    public bool ShowMessageList
+    {
+        get => _showMessageList;
+        set => Set(ref _showMessageList, value);
     }
 
     public CapturedMessage? SelectedMessage
@@ -161,15 +253,40 @@ public class MainViewModel : ObservableObject
             Raise(nameof(HasSelection));
             Raise(nameof(SelectedAttachments));
             Raise(nameof(SelectedEmbeddedImages));
+            Raise(nameof(AttachmentCountText));
+            Raise(nameof(ReceivedText));
+            Raise(nameof(SimulatorSubtitle));
+            Raise(nameof(HasFailureDetail));
+            Raise(nameof(FailureDetail));
             SimulateOpenCommand.RaiseCanExecuteChanged();
             SimulateClickCommand.RaiseCanExecuteChanged();
             ResetCountersCommand.RaiseCanExecuteChanged();
             SetStateCommand.RaiseCanExecuteChanged();
+            ResendCommand.RaiseCanExecuteChanged();
+            ApplyBounceReasonCommand.RaiseCanExecuteChanged();
             SelectionChanged?.Invoke(this, value);
         }
     }
 
     public bool HasSelection => SelectedMessage is not null;
+
+    public string ReceivedText => SelectedMessage is null
+        ? string.Empty
+        : $"received {SelectedMessage.ReceivedAt:d MMM yyyy, HH:mm:ss}";
+
+    public string SimulatorSubtitle => SelectedMessage is null
+        ? string.Empty
+        : $"· sets what messages/search reports back for _id {SelectedMessage.Id}";
+
+    public bool HasFailureDetail => SelectedMessage is not null
+                                    && (!string.IsNullOrWhiteSpace(SelectedMessage.RejectReason)
+                                        || !string.IsNullOrWhiteSpace(SelectedMessage.BounceDescription));
+
+    public string FailureDetail => SelectedMessage is null
+        ? string.Empty
+        : !string.IsNullOrWhiteSpace(SelectedMessage.RejectReason)
+            ? $"reject_reason: {SelectedMessage.RejectReason}"
+            : $"bounce_description: {SelectedMessage.BounceDescription}";
 
     public IReadOnlyList<CapturedAttachment> SelectedAttachments =>
         SelectedMessage?.Attachments.Where(a => !a.IsEmbeddedImage).ToList() ?? [];
@@ -177,12 +294,35 @@ public class MainViewModel : ObservableObject
     public IReadOnlyList<CapturedAttachment> SelectedEmbeddedImages =>
         SelectedMessage?.Attachments.Where(a => a.IsEmbeddedImage).ToList() ?? [];
 
-    public FilterEntry SelectedFilter
+    public string AttachmentCountText => SelectedAttachments.Count > 0
+        ? SelectedAttachments.Count.ToString()
+        : string.Empty;
+
+    public FilterEntry SelectedStateFilter
     {
-        get => _selectedFilter;
+        get => _selectedStateFilter;
         set
         {
-            if (Set(ref _selectedFilter, value)) MessagesView.Refresh();
+            if (value is null || !Set(ref _selectedStateFilter, value)) return;
+            _selectedTagFilter = null;
+            Raise(nameof(SelectedTagFilter));
+            ApplyFilter();
+        }
+    }
+
+    public FilterEntry? SelectedTagFilter
+    {
+        get => _selectedTagFilter;
+        set
+        {
+            if (!Set(ref _selectedTagFilter, value)) return;
+            if (value is not null)
+            {
+                _selectedStateFilter = StateFilters[0];
+                Raise(nameof(SelectedStateFilter));
+            }
+
+            ApplyFilter();
         }
     }
 
@@ -191,8 +331,14 @@ public class MainViewModel : ObservableObject
         get => _searchText;
         set
         {
-            if (Set(ref _searchText, value)) MessagesView.Refresh();
+            if (Set(ref _searchText, value)) ApplyFilter();
         }
+    }
+
+    public string BounceReasonDraft
+    {
+        get => _bounceReasonDraft;
+        set => Set(ref _bounceReasonDraft, value);
     }
 
     public string LastRequestText
@@ -207,14 +353,12 @@ public class MainViewModel : ObservableObject
         set => Set(ref _statusMessage, value);
     }
 
-    public event EventHandler<CapturedMessage?>? SelectionChanged;
-    public event EventHandler<bool>? ThemeChanged;
-
     public async Task InitialiseAsync()
     {
         _settings = await _settingsService.LoadAsync();
         Port = _settings.Port;
         IsDarkTheme = _settings.DarkTheme;
+        AutoSelectNewest = _settings.AutoSelectNewest;
 
         foreach (var project in _settings.RecentProjects) ConnectedProjects.Add(project);
 
@@ -226,6 +370,7 @@ public class MainViewModel : ObservableObject
         _settings.Port = Port;
         _settings.RecentProjects = ConnectedProjects.ToList();
         await _settingsService.SaveAsync(_settings);
+        _uptimeTimer.Stop();
         _server.Stop();
     }
 
@@ -234,7 +379,9 @@ public class MainViewModel : ObservableObject
         try
         {
             _server.Start(Port);
+            _startedAt = DateTimeOffset.Now;
             IsRunning = true;
+            _uptimeTimer.Start();
             StatusMessage = string.Empty;
         }
         catch (Exception ex)
@@ -247,19 +394,23 @@ public class MainViewModel : ObservableObject
     public void StopServer()
     {
         _server.Stop();
+        _uptimeTimer.Stop();
+        _startedAt = null;
         IsRunning = false;
     }
 
     private void AddMessage(CapturedMessage message)
     {
-        Messages.Add(message);
+        _all.Add(message);
         RefreshCounts();
+        ApplyFilter();
 
-        if (_settings.AutoSelectNewest || SelectedMessage is null) SelectedMessage = message;
+        if (AutoSelectNewest || SelectedMessage is null) SelectedMessage = message;
     }
 
     private void ResetMessages()
     {
+        _all.Clear();
         Messages.Clear();
         SelectedMessage = null;
         RefreshCounts();
@@ -268,73 +419,122 @@ public class MainViewModel : ObservableObject
     private void RefreshCounts()
     {
         Raise(nameof(MessageCount));
+        Raise(nameof(MessageCountText));
+        Raise(nameof(CapturedText));
         Raise(nameof(HasMessages));
 
-        foreach (var filter in Filters)
+        foreach (var filter in StateFilters)
         {
             filter.Count = filter.Kind == FilterKind.All
-                ? Messages.Count
-                : Messages.Count(m => m.StateWire == filter.Value);
+                ? _all.Count
+                : _all.Count(m => m.StateWire == filter.Value);
         }
 
-        var tags = Messages.SelectMany(m => m.Tags.Count > 0 ? m.Tags : ["(untagged)"])
+        var tags = _all
+            .SelectMany(m => m.Tags.Count > 0 ? m.Tags : ["(untagged)"])
             .GroupBy(t => t, StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var keepSelected = SelectedTagFilter?.Value;
         TagFilters.Clear();
         foreach (var tag in tags)
         {
-            TagFilters.Add(new FilterEntry(tag.Key, FilterKind.Tag, tag.Key) { Count = tag.Count() });
+            var entry = new FilterEntry(tag.Key, FilterKind.Tag, tag.Key) { Count = tag.Count() };
+            TagFilters.Add(entry);
+            if (string.Equals(keepSelected, tag.Key, StringComparison.OrdinalIgnoreCase))
+                _selectedTagFilter = entry;
         }
+
+        Raise(nameof(SelectedTagFilter));
     }
 
-    private bool FilterMessage(object item)
+    private void ApplyFilter()
     {
-        if (item is not CapturedMessage message) return false;
+        var previous = SelectedMessage;
 
-        if (SelectedFilter.Kind == FilterKind.State && message.StateWire != SelectedFilter.Value) return false;
+        IEnumerable<CapturedMessage> query = _all;
 
-        if (SelectedFilter.Kind == FilterKind.Tag)
+        if (SelectedTagFilter is { Value: { } tag })
         {
-            var tags = message.Tags.Count > 0 ? message.Tags : ["(untagged)"];
-            if (!tags.Contains(SelectedFilter.Value!, StringComparer.OrdinalIgnoreCase)) return false;
+            query = query.Where(m => (m.Tags.Count > 0 ? m.Tags : ["(untagged)"])
+                .Contains(tag, StringComparer.OrdinalIgnoreCase));
+        }
+        else if (SelectedStateFilter.Kind == FilterKind.State)
+        {
+            query = query.Where(m => m.StateWire == SelectedStateFilter.Value);
         }
 
-        if (string.IsNullOrWhiteSpace(SearchText)) return true;
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            var needle = SearchText.Trim();
+            query = query.Where(m =>
+                m.ToEmail.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || m.Subject.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || m.Id.Contains(needle, StringComparison.OrdinalIgnoreCase));
+        }
 
-        var needle = SearchText.Trim();
-        return message.ToEmail.Contains(needle, StringComparison.OrdinalIgnoreCase)
-               || message.Subject.Contains(needle, StringComparison.OrdinalIgnoreCase)
-               || message.Id.Contains(needle, StringComparison.OrdinalIgnoreCase);
+        query = NewestFirst
+            ? query.OrderByDescending(m => m.ReceivedAt)
+            : query.OrderBy(m => m.ReceivedAt);
+
+        Messages.Clear();
+        foreach (var message in query) Messages.Add(message);
+
+        if (previous is not null && Messages.Contains(previous)) SelectedMessage = previous;
+        else if (!Messages.Contains(SelectedMessage!)) SelectedMessage = Messages.FirstOrDefault();
     }
 
     private void Bump(Action<CapturedMessage> change)
     {
         if (SelectedMessage is null) return;
         change(SelectedMessage);
-        StatusMessage = $"messages/search will now report opens {SelectedMessage.Opens}, clicks {SelectedMessage.Clicks} for this message.";
+        StatusMessage =
+            $"messages/search now reports opens {SelectedMessage.Opens}, clicks {SelectedMessage.Clicks} for this message.";
     }
 
     private void SetState(object? parameter)
     {
         if (SelectedMessage is null || parameter is not string wire) return;
+        if (SelectedMessage.StateWire == wire) return;
 
         var state = MessageStates.FromWire(wire);
         SelectedMessage.State = state;
 
         if (state is MessageState.Rejected or MessageState.Invalid)
+        {
             SelectedMessage.RejectReason ??= "invalid-sender";
+            SelectedMessage.BounceDescription = null;
+        }
         else if (state is MessageState.Bounced or MessageState.SoftBounced)
+        {
             SelectedMessage.BounceDescription ??= "smtp; 550 mailbox unavailable";
+            SelectedMessage.RejectReason = null;
+        }
         else
         {
             SelectedMessage.RejectReason = null;
             SelectedMessage.BounceDescription = null;
         }
 
+        Raise(nameof(HasFailureDetail));
+        Raise(nameof(FailureDetail));
         RefreshCounts();
-        MessagesView.Refresh();
+        ApplyFilter();
+    }
+
+    private void ApplyBounceReason()
+    {
+        if (SelectedMessage is null || string.IsNullOrWhiteSpace(BounceReasonDraft)) return;
+
+        if (SelectedMessage.State is MessageState.Rejected or MessageState.Invalid)
+            SelectedMessage.RejectReason = BounceReasonDraft.Trim();
+        else
+            SelectedMessage.BounceDescription = BounceReasonDraft.Trim();
+
+        Raise(nameof(HasFailureDetail));
+        Raise(nameof(FailureDetail));
+        StatusMessage = "Failure detail updated.";
     }
 
     private async Task SendSampleAsync()
@@ -347,6 +547,45 @@ public class MainViewModel : ObservableObject
         {
             StatusMessage = $"Sample send failed: {ex.Message}";
         }
+    }
+
+    private async Task ResendAsync()
+    {
+        if (SelectedMessage is null || string.IsNullOrWhiteSpace(SelectedMessage.RawRequestJson)) return;
+
+        try
+        {
+            await _sampleSender.SendRawAsync(_server.BaseUrl, SelectedMessage.RawRequestJson);
+            StatusMessage = "Replayed the captured request against the simulator.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Resend failed: {ex.Message}";
+        }
+    }
+
+    private string BuildSessionExport()
+    {
+        var export = new StringBuilder();
+        export.AppendLine("[");
+
+        for (var i = 0; i < _all.Count; i++)
+        {
+            var message = _all[i];
+            export.AppendLine("  {");
+            export.AppendLine($"    \"_id\": \"{message.Id}\",");
+            export.AppendLine($"    \"received\": \"{message.ReceivedAt:yyyy-MM-dd HH:mm:ss}\",");
+            export.AppendLine($"    \"state\": \"{message.StateWire}\",");
+            export.AppendLine($"    \"to\": \"{message.ToEmail}\",");
+            export.AppendLine($"    \"subject\": {System.Text.Json.JsonSerializer.Serialize(message.Subject)},");
+            export.AppendLine($"    \"opens\": {message.Opens},");
+            export.AppendLine($"    \"clicks\": {message.Clicks},");
+            export.AppendLine($"    \"request\": {message.RawRequestJson}");
+            export.AppendLine(i == _all.Count - 1 ? "  }" : "  },");
+        }
+
+        export.AppendLine("]");
+        return export.ToString();
     }
 
     private async Task ConnectAsync(object? parameter)
@@ -387,36 +626,12 @@ public class MainViewModel : ObservableObject
         }
     }
 
-    private void SaveAttachment(object? parameter)
-    {
-        if (parameter is not CapturedAttachment attachment) return;
-
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            FileName = attachment.Name,
-            Filter = "All files|*.*"
-        };
-
-        if (dialog.ShowDialog() != true) return;
-
-        try
-        {
-            File.WriteAllBytes(dialog.FileName, attachment.Content);
-            StatusMessage = $"Saved {attachment.Name}.";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Could not save {attachment.Name}: {ex.Message}";
-        }
-    }
-
     private void OnRequestHandled(object? sender, RequestLogEntry entry) => OnUi(() =>
     {
-        LastRequestText = $"{entry.Method} {entry.RawPath} · {entry.StatusCode} · {entry.At:HH:mm:ss} · {entry.ElapsedMs} ms";
+        LastRequestText =
+            $"Last request: {entry.Method} {entry.RawPath} · {entry.StatusCode} · {entry.At:HH:mm:ss}";
 
-        var hit = EndpointHits.FirstOrDefault(h =>
-            SimulatorServer.NormalisePath(h.Path) == entry.Route);
-
+        var hit = EndpointHits.FirstOrDefault(h => SimulatorServer.NormalisePath(h.Path) == entry.Route);
         if (hit is not null) hit.Hits++;
     });
 
@@ -425,8 +640,7 @@ public class MainViewModel : ObservableObject
 
     private static void OnUi(Action action)
     {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess()) action();
-        else dispatcher.Invoke(action);
+        if (Dispatcher.UIThread.CheckAccess()) action();
+        else Dispatcher.UIThread.Post(action);
     }
 }

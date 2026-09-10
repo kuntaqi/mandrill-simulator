@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MandrillSimulator.ConnectProjectWindow"
+        Title="Connect a project"
+        Width="660" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackground}"
+        FontFamily="{StaticResource UiFont}">
+
+    <StackPanel Margin="22" Spacing="0">
+        <TextBlock TextWrapping="Wrap" Classes="secondary" Margin="0,0,0,18"
+                   Text="Pick any JSON configuration file and the key that holds the Mandrill base URL. The simulator writes its own URL into that key and keeps a .bak copy beside the file, so Disconnect can put the original back. Nothing here is specific to one codebase." />
+
+        <TextBlock Text="CONFIGURATION FILE" Classes="caption" Margin="0,0,0,6" />
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBox x:Name="PathBox" Grid.Column="0" Watermark="C:\path\to\appsettings.Development.json" />
+            <Button Grid.Column="1" Content="Browse…" Margin="9,0,0,0" Click="OnBrowse" />
+        </Grid>
+
+        <TextBlock Text="KEY PATH" Classes="caption" Margin="0,0,0,6" />
+        <TextBox x:Name="KeyBox" Text="AppSetting:MandrillBaseUrl" Margin="0,0,0,6" />
+        <TextBlock Classes="muted" FontSize="11.5" Margin="0,0,0,16" TextWrapping="Wrap"
+                   Text="Colon or dot separated, for example AppSetting:MandrillBaseUrl. Missing levels are created." />
+
+        <Border Background="{DynamicResource CodeBackground}" BorderBrush="{DynamicResource BorderSoft}"
+                BorderThickness="1" CornerRadius="4" Padding="11,8" Margin="0,0,0,20">
+            <TextBlock x:Name="PreviewText" Classes="mono" TextWrapping="Wrap" />
+        </Border>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="9">
+            <Button Content="Cancel" MinWidth="94" Click="OnCancel" />
+            <Button Content="Connect" MinWidth="94" Classes="accent" Click="OnConnect" />
+        </StackPanel>
+    </StackPanel>
+</Window>

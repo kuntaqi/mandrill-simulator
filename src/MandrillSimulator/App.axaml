@@ -1,0 +1,278 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MandrillSimulator.Converters"
+             x:Class="MandrillSimulator.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://MandrillSimulator/Themes/Icons.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <ResourceDictionary.ThemeDictionaries>
+
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="TitleBarBackground" Color="#F0F0F0" />
+                    <SolidColorBrush x:Key="WindowBackground" Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="PanelBackground" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RailBackground" Color="#FAFAFA" />
+                    <SolidColorBrush x:Key="StatusBarBackground" Color="#F7F7F7" />
+                    <SolidColorBrush x:Key="BorderSoft" Color="#E5E7E9" />
+                    <SolidColorBrush x:Key="TextPrimary" Color="#1A1A1A" />
+                    <SolidColorBrush x:Key="TextSecondary" Color="#5A5F66" />
+                    <SolidColorBrush x:Key="TextMuted" Color="#8A9099" />
+                    <SolidColorBrush x:Key="Accent" Color="#1668C1" />
+                    <SolidColorBrush x:Key="AccentHover" Color="#1259A6" />
+                    <SolidColorBrush x:Key="AccentText" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RowSelected" Color="#EAF3FC" />
+                    <SolidColorBrush x:Key="RowHover" Color="#F5F6F7" />
+                    <SolidColorBrush x:Key="ChipBackground" Color="#EFF1F3" />
+                    <SolidColorBrush x:Key="ChipBorder" Color="#E1E4E7" />
+                    <SolidColorBrush x:Key="CodeBackground" Color="#FAFBFC" />
+                    <SolidColorBrush x:Key="SimStripBackground" Color="#F4F9FE" />
+                    <SolidColorBrush x:Key="SimStripBorder" Color="#C9DFF5" />
+                    <SolidColorBrush x:Key="WarningBackground" Color="#FFF6DF" />
+                    <SolidColorBrush x:Key="WarningBorder" Color="#EBCF8E" />
+                    <SolidColorBrush x:Key="WarningText" Color="#7A5B12" />
+                    <SolidColorBrush x:Key="DevChipBackground" Color="#E4F2E8" />
+                    <SolidColorBrush x:Key="DevChipText" Color="#1A7F37" />
+                    <SolidColorBrush x:Key="StoppedDot" Color="#9AA0A6" />
+                    <SolidColorBrush x:Key="RunningDot" Color="#1A7F37" />
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="TitleBarBackground" Color="#1E1E1E" />
+                    <SolidColorBrush x:Key="WindowBackground" Color="#1F1F1F" />
+                    <SolidColorBrush x:Key="PanelBackground" Color="#262626" />
+                    <SolidColorBrush x:Key="RailBackground" Color="#202020" />
+                    <SolidColorBrush x:Key="StatusBarBackground" Color="#1C1C1C" />
+                    <SolidColorBrush x:Key="BorderSoft" Color="#383838" />
+                    <SolidColorBrush x:Key="TextPrimary" Color="#F1F1F1" />
+                    <SolidColorBrush x:Key="TextSecondary" Color="#B4B8BD" />
+                    <SolidColorBrush x:Key="TextMuted" Color="#8A9099" />
+                    <SolidColorBrush x:Key="Accent" Color="#4CA3E8" />
+                    <SolidColorBrush x:Key="AccentHover" Color="#6FB6EE" />
+                    <SolidColorBrush x:Key="AccentText" Color="#10233A" />
+                    <SolidColorBrush x:Key="RowSelected" Color="#2B3B4B" />
+                    <SolidColorBrush x:Key="RowHover" Color="#2E2E2E" />
+                    <SolidColorBrush x:Key="ChipBackground" Color="#333333" />
+                    <SolidColorBrush x:Key="ChipBorder" Color="#3F3F3F" />
+                    <SolidColorBrush x:Key="CodeBackground" Color="#1B1B1B" />
+                    <SolidColorBrush x:Key="SimStripBackground" Color="#22303D" />
+                    <SolidColorBrush x:Key="SimStripBorder" Color="#35566E" />
+                    <SolidColorBrush x:Key="WarningBackground" Color="#3D3218" />
+                    <SolidColorBrush x:Key="WarningBorder" Color="#6B5A2A" />
+                    <SolidColorBrush x:Key="WarningText" Color="#E7CE93" />
+                    <SolidColorBrush x:Key="DevChipBackground" Color="#223A2A" />
+                    <SolidColorBrush x:Key="DevChipText" Color="#7FD79B" />
+                    <SolidColorBrush x:Key="StoppedDot" Color="#7A7F85" />
+                    <SolidColorBrush x:Key="RunningDot" Color="#3FB765" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+
+            <conv:StateBrushConverter x:Key="StateBrush" />
+            <conv:FileSizeConverter x:Key="FileSize" />
+            <conv:CountVisibleConverter x:Key="CountVisible" />
+            <conv:BoolNegateConverter x:Key="Not" />
+
+            <FontFamily x:Key="UiFont">Segoe UI, Inter, Helvetica Neue, sans-serif</FontFamily>
+            <FontFamily x:Key="MonoFont">Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="TextBlock.caption">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+        </Style>
+
+        <Style Selector="TextBlock.secondary">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        </Style>
+
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+        </Style>
+
+        <Style Selector="TextBlock.mono">
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+        <Style Selector="TextBlock.small">
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+
+        <!-- Toolbar and rail buttons: flat, quiet, only the border on hover. -->
+        <Style Selector="Button">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{DynamicResource PanelBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RowHover}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}" />
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="Button:disabled">
+            <Setter Property="Opacity" Value="0.4" />
+        </Style>
+
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="{DynamicResource Accent}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentText}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentHover}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentHover}" />
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource AccentText}" />
+        </Style>
+
+        <!-- Toolbar entries read as plain labels until hovered. -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RowHover}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+
+        <Style Selector="Button.link">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Background" Value="{DynamicResource PanelBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Background" Value="{DynamicResource PanelBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}" />
+        </Style>
+
+        <!-- Rail filters and the message list share one quiet row treatment. -->
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RowHover}" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RowSelected}" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RowSelected}" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RowSelected}" />
+        </Style>
+
+        <!-- Only the message list carries the accent bar; the rail filters read as
+             a plain highlighted row. -->
+        <Style Selector="ListBox.messages ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="BorderThickness" Value="3,0,0,0" />
+        </Style>
+
+        <!-- Underlined tabs, matching the mockup rather than Fluent's pill. -->
+        <Style Selector="TabControl">
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style Selector="TabItem">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="Padding" Value="2,0,2,0" />
+            <Setter Property="Margin" Value="0,0,18,0" />
+            <Setter Property="MinHeight" Value="34" />
+        </Style>
+
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+            <Setter Property="Background" Value="{DynamicResource Accent}" />
+            <Setter Property="Height" Value="2" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="MenuItem">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
+        <Style Selector="ScrollViewer">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </Application.Styles>
+</Application>

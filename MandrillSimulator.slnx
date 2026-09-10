@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/MandrillSimulator.Core/MandrillSimulator.Core.csproj" />
     <Project Path="src/MandrillSimulator/MandrillSimulator.csproj" />
   </Folder>
   <Folder Name="/tests/">

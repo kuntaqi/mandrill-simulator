@@ -70,6 +70,24 @@ public class CapturedMessage : INotifyPropertyChanged
 
     public string DisplayTags => Tags.Count > 0 ? string.Join(", ", Tags) : "(untagged)";
 
+    // Flat key/value view of the wire fields, for the Headers tab.
+    public IReadOnlyList<KeyValuePair<string, string>> HeaderRows =>
+    [
+        new("_id", Id),
+        new("status", StateWire),
+        new("reject_reason", RejectReason ?? "—"),
+        new("bounce_description", BounceDescription ?? "—"),
+        new("from_email", FromEmail),
+        new("to", ToEmail),
+        new("cc", CcEmails.Count > 0 ? string.Join(", ", CcEmails) : "—"),
+        new("tags", DisplayTags),
+        new("opens / clicks", $"{Opens} / {Clicks}"),
+        new("track_opens / track_clicks", $"{TrackOpens} / {TrackClicks}"),
+        new("attachments", Attachments.Count.ToString()),
+        new("received", ReceivedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+        new("ts (unix)", UnixTimestamp.ToString())
+    ];
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)

@@ -1,11 +1,10 @@
 using System.Collections;
 using System.Globalization;
-using System.Windows;
-using System.Windows.Data;
+using Avalonia.Data.Converters;
 
 namespace MandrillSimulator.Converters;
 
-public class CountToVisibilityConverter : IValueConverter
+public class CountVisibleConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -16,11 +15,9 @@ public class CountToVisibilityConverter : IValueConverter
             _ => 0
         };
 
-        var invert = string.Equals(parameter as string, "invert", StringComparison.OrdinalIgnoreCase);
         var visible = count > 0;
-        if (invert) visible = !visible;
-
-        return visible ? Visibility.Visible : Visibility.Collapsed;
+        if (string.Equals(parameter as string, "invert", StringComparison.OrdinalIgnoreCase)) visible = !visible;
+        return visible;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>

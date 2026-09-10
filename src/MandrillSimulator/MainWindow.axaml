@@ -1,0 +1,738 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:MandrillSimulator.ViewModels"
+        x:Class="MandrillSimulator.MainWindow"
+        Title="Mandrill Simulator"
+        Width="1600" Height="1000"
+        MinWidth="1040" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackground}"
+        FontFamily="{StaticResource UiFont}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="36">
+
+    <Window.Resources>
+        <x:Double x:Key="RailWidth">266</x:Double>
+    </Window.Resources>
+
+    <Grid RowDefinitions="36,30,41,*,25">
+
+        <!-- Title bar. Avalonia draws the icon, title and window buttons into the
+             extended chrome; this row adds the chip beside them and starts the drag. -->
+        <Border Grid.Row="0" Background="{DynamicResource TitleBarBackground}"
+                PointerPressed="OnTitleBarPressed">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="150,0,0,0">
+                <Border Background="{DynamicResource DevChipBackground}" CornerRadius="3" Padding="7,2"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="LOCAL / DEV ONLY" FontSize="10" FontWeight="Bold"
+                               Foreground="{DynamicResource DevChipText}" />
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Menu -->
+        <Menu Grid.Row="1" Margin="6,0,0,0" VerticalAlignment="Center">
+            <MenuItem Header="_File">
+                <MenuItem Header="Connect a project to this simulator…" Click="OnConnectProject" />
+                <MenuItem Header="Export session…" Command="{Binding ExportSessionCommand}" />
+                <Separator />
+                <MenuItem Header="Exit" Click="OnExit" />
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="Copy base URL" Click="OnCopyUrl" />
+                <MenuItem Header="Clear all messages" Command="{Binding ClearAllCommand}" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="Dark theme" ToggleType="CheckBox" IsChecked="{Binding IsDarkTheme}" />
+                <Separator />
+                <MenuItem Header="Sidebar" ToggleType="CheckBox" IsChecked="{Binding ShowSidebar}" />
+                <MenuItem Header="Message list" ToggleType="CheckBox" IsChecked="{Binding ShowMessageList}" />
+            </MenuItem>
+            <MenuItem Header="_Server">
+                <MenuItem Header="Start" Command="{Binding StartServerCommand}" />
+                <MenuItem Header="Stop" Command="{Binding StopServerCommand}" />
+                <Separator />
+                <MenuItem Header="Send sample message" Command="{Binding SendSampleCommand}" />
+            </MenuItem>
+            <MenuItem Header="Si_mulate">
+                <MenuItem Header="Open on selected message" Command="{Binding SimulateOpenCommand}" />
+                <MenuItem Header="Click on selected message" Command="{Binding SimulateClickCommand}" />
+                <MenuItem Header="Reset counters" Command="{Binding ResetCountersCommand}" />
+                <Separator />
+                <MenuItem Header="Fail the next API call (500)" Command="{Binding FailNextRequestCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="About" Click="OnAbout" />
+            </MenuItem>
+        </Menu>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="2" Background="{DynamicResource PanelBackground}"
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,1">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="12,0">
+
+                <Border Grid.Column="0" Width="292" Height="27" CornerRadius="4"
+                        Background="{DynamicResource PanelBackground}"
+                        BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1"
+                        VerticalAlignment="Center">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Path Grid.Column="0" Data="{StaticResource IconSearch}"
+                              Stroke="{DynamicResource TextMuted}" StrokeThickness="1.5"
+                              Width="13" Height="13" Stretch="Uniform" Margin="8,0,0,0"
+                              VerticalAlignment="Center" />
+                        <TextBox Grid.Column="1" Text="{Binding SearchText}" BorderThickness="0"
+                                 Background="Transparent" Padding="6,0,6,0" FontSize="12.5"
+                                 VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                 Watermark="Search recipient, subject, _id…" />
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" Spacing="4"
+                            VerticalAlignment="Center">
+                    <Button Classes="ghost" Command="{Binding RefreshCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Data="{StaticResource IconRefresh}" Stroke="{DynamicResource TextSecondary}"
+                                  StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" />
+                            <TextBlock Text="Refresh" Classes="secondary" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="ghost" Command="{Binding ExportSessionCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Data="{StaticResource IconExport}" Stroke="{DynamicResource TextSecondary}"
+                                  StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" />
+                            <TextBlock Text="Export session" Classes="secondary" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="ghost" Command="{Binding ClearAllCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Data="{StaticResource IconTrash}" Stroke="#C0342B"
+                                  StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" />
+                            <TextBlock Text="Clear all" Classes="secondary" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="ghost" Click="OnToggleAutoSelect">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Auto-select newest" Classes="secondary" />
+                            <Path Data="{StaticResource IconCheck}" Stroke="{DynamicResource Accent}"
+                                  StrokeThickness="2" Width="12" Height="12" Stretch="Uniform"
+                                  IsVisible="{Binding AutoSelectNewest}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="ghost">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Layout" Classes="secondary" />
+                            <Path Data="{StaticResource IconChevronDown}" Stroke="{DynamicResource TextMuted}"
+                                  StrokeThickness="1.6" Width="11" Height="11" Stretch="Uniform" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Sidebar" ToggleType="CheckBox" IsChecked="{Binding ShowSidebar}" />
+                                <MenuItem Header="Message list" ToggleType="CheckBox"
+                                          IsChecked="{Binding ShowMessageList}" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main content -->
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,Auto,*">
+
+            <!-- Left rail -->
+            <Border Grid.Column="0" Width="{StaticResource RailWidth}"
+                    Background="{DynamicResource RailBackground}"
+                    BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,1,0"
+                    IsVisible="{Binding ShowSidebar}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Bottom" Margin="14,10,14,14" HorizontalAlignment="Stretch"
+                            Command="{Binding ClearAllCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
+                            <Path Data="{StaticResource IconTrash}" Stroke="{DynamicResource TextSecondary}"
+                                  StrokeThickness="1.5" Width="13" Height="13" Stretch="Uniform" />
+                            <TextBlock Text="Clear all messages" FontSize="12.5" />
+                        </StackPanel>
+                    </Button>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="14,14,14,0">
+
+                            <TextBlock Text="SERVER" Classes="caption" Margin="0,0,0,9" />
+
+                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,9">
+                                <Panel Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center">
+                                    <Ellipse Width="9" Height="9" Fill="{DynamicResource RunningDot}"
+                                             IsVisible="{Binding IsRunning}" />
+                                    <Ellipse Width="9" Height="9" Fill="{DynamicResource StoppedDot}"
+                                             IsVisible="{Binding !IsRunning}" />
+                                </Panel>
+                                <TextBlock Grid.Column="1" Text="{Binding ServerStatusText}"
+                                           FontWeight="SemiBold" FontSize="12.5" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding UptimeText}" Classes="muted small"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border CornerRadius="4" Background="{DynamicResource PanelBackground}"
+                                    BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1"
+                                    Padding="9,5" Margin="0,0,0,9">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="{Binding ShortUrl}" Classes="mono"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Button Grid.Column="1" Classes="ghost" Padding="4,2" Click="OnCopyUrl"
+                                            ToolTip.Tip="Copy the base URL">
+                                        <Path Data="{StaticResource IconCopy}" Stroke="{DynamicResource TextMuted}"
+                                              StrokeThickness="1.5" Width="13" Height="13" Stretch="Uniform" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,9">
+                                <TextBlock Grid.Column="0" Text="Port" Classes="secondary"
+                                           VerticalAlignment="Center" Margin="0,0,9,0" />
+                                <TextBox Grid.Column="1" Text="{Binding Port}" />
+                            </Grid>
+
+                            <Button HorizontalAlignment="Stretch" Command="{Binding ToggleServerCommand}"
+                                    Classes.accent="{Binding !IsRunning}">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <Path Data="{StaticResource IconStop}" Stroke="{DynamicResource TextPrimary}"
+                                          Fill="{DynamicResource TextPrimary}" StrokeThickness="1"
+                                          Width="10" Height="10" Stretch="Uniform"
+                                          IsVisible="{Binding IsRunning}" />
+                                    <Path Data="{StaticResource IconPlay}" Stroke="{DynamicResource AccentText}"
+                                          Fill="{DynamicResource AccentText}" StrokeThickness="1"
+                                          Width="10" Height="10" Stretch="Uniform"
+                                          IsVisible="{Binding !IsRunning}" />
+                                    <TextBlock Text="Stop server" FontSize="12.5" IsVisible="{Binding IsRunning}" />
+                                    <TextBlock Text="Start server" FontSize="12.5" IsVisible="{Binding !IsRunning}"
+                                               Foreground="{DynamicResource AccentText}" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button HorizontalAlignment="Stretch" Margin="0,9,0,0" Click="OnConnectProject">
+                                <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
+                                    <Path Data="{StaticResource IconLink}" Stroke="{DynamicResource TextSecondary}"
+                                          StrokeThickness="1.5" Width="13" Height="13" Stretch="Uniform" />
+                                    <TextBlock Text="Connect a project…" FontSize="12.5" />
+                                </StackPanel>
+                            </Button>
+
+                            <ItemsControl ItemsSource="{Binding ConnectedProjects}" Margin="0,9,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource PanelBackground}"
+                                                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1"
+                                                CornerRadius="4" Padding="8,6" Margin="0,0,0,5">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="{Binding ConfigPath}" FontSize="11"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding ConfigPath}" />
+                                                <TextBlock Text="{Binding KeyPath}" Classes="mono muted"
+                                                           FontSize="10" />
+                                                <Button Classes="link" FontSize="10.5" Margin="0,3,0,0"
+                                                        HorizontalAlignment="Left" Content="Disconnect"
+                                                        Command="{Binding $parent[Window].DataContext.DisconnectProjectCommand}"
+                                                        CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,18,0,7">
+                                <TextBlock Grid.Column="0" Text="ENDPOINTS" Classes="caption" />
+                                <TextBlock Grid.Column="1" Text="HITS" Classes="caption" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding EndpointHits}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
+                                            <TextBlock Grid.Column="0" Text="POST" Classes="mono muted"
+                                                       FontSize="10" Margin="0,0,7,0" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Path}" Classes="mono secondary"
+                                                       FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Hits}" FontSize="11.5"
+                                                       FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="MESSAGES" Classes="caption" Margin="0,18,0,7" />
+                            <ListBox ItemsSource="{Binding StateFilters}" SelectedItem="{Binding SelectedStateFilter}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Height="25">
+                                            <Border Grid.Column="0" Width="8" Height="8" CornerRadius="2"
+                                                    Margin="4,0,9,0" VerticalAlignment="Center"
+                                                    IsVisible="{Binding HasDot}"
+                                                    Background="{Binding DotState, Converter={StaticResource StateBrush}, ConverterParameter=fg}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="12.5"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Count}" Classes="muted"
+                                                       FontSize="11.5" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock Text="TAGS" Classes="caption" Margin="0,18,0,7"
+                                       IsVisible="{Binding TagFilters.Count, Converter={StaticResource CountVisible}}" />
+                            <ListBox ItemsSource="{Binding TagFilters}" SelectedItem="{Binding SelectedTagFilter}"
+                                     Margin="0,0,0,14">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Height="25">
+                                            <Panel Grid.Column="0" Margin="4,0,9,0" VerticalAlignment="Center">
+                                                <Border Width="8" Height="8" CornerRadius="2"
+                                                        Background="{DynamicResource Accent}"
+                                                        IsVisible="{Binding !IsUntagged}" />
+                                                <Border Width="8" Height="8" CornerRadius="2"
+                                                        Background="{DynamicResource TextMuted}"
+                                                        IsVisible="{Binding IsUntagged}" />
+                                            </Panel>
+                                            <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="12.5"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Count}" Classes="muted"
+                                                       FontSize="11.5" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="1" Background="Transparent"
+                          IsVisible="{Binding ShowSidebar}" />
+
+            <!-- Message list -->
+            <Border Grid.Column="2" Width="441" Background="{DynamicResource PanelBackground}"
+                    BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,1,0"
+                    IsVisible="{Binding ShowMessageList}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Padding="14,9"
+                            BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                            <TextBlock Grid.Column="0" Text="Messages" FontWeight="SemiBold" FontSize="13"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding CapturedText}" Classes="muted"
+                                       FontSize="12" Margin="9,0,0,0" VerticalAlignment="Center" />
+                            <Button Grid.Column="3" Classes="ghost" Padding="6,2"
+                                    Command="{Binding ToggleSortCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="Received" Classes="secondary" FontSize="12" />
+                                    <Path Data="{StaticResource IconChevronDown}"
+                                          Stroke="{DynamicResource TextMuted}" StrokeThickness="1.6"
+                                          Width="11" Height="11" Stretch="Uniform" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock DockPanel.Dock="Top" Margin="16,22" TextWrapping="Wrap" Classes="secondary"
+                               IsVisible="{Binding !HasMessages}"
+                               Text="Nothing captured yet. Point an application at the URL in the rail, or use Send sample message to check the simulator end to end." />
+
+                    <ListBox Classes="messages" ItemsSource="{Binding Messages}" SelectedItem="{Binding SelectedMessage}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="14,9" BorderBrush="{DynamicResource BorderSoft}"
+                                        BorderThickness="0,0,0,1">
+                                    <StackPanel Spacing="2">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding ToEmail}"
+                                                       FontWeight="SemiBold" FontSize="13"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding ReceivedAt, StringFormat='{}{0:HH:mm:ss}'}"
+                                                       Classes="muted" FontSize="11" />
+                                        </Grid>
+
+                                        <TextBlock Text="{Binding Subject}" Classes="secondary" FontSize="12.5"
+                                                   TextTrimming="CharacterEllipsis" />
+
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                                <Border CornerRadius="3" Padding="6,1"
+                                                        Background="{Binding StateWire, Converter={StaticResource StateBrush}}">
+                                                    <TextBlock Text="{Binding StateWire}" FontSize="10"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{Binding StateWire, Converter={StaticResource StateBrush}, ConverterParameter=fg}" />
+                                                </Border>
+                                                <Border CornerRadius="3" Padding="6,1"
+                                                        Background="{DynamicResource ChipBackground}">
+                                                    <TextBlock Text="{Binding DisplayTags}" FontSize="10"
+                                                               Classes="secondary" MaxWidth="180"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </Border>
+                                                <Path Data="{StaticResource IconPaperclip}"
+                                                      Stroke="{DynamicResource TextMuted}" StrokeThickness="1.5"
+                                                      Width="12" Height="12" Stretch="Uniform"
+                                                      VerticalAlignment="Center"
+                                                      IsVisible="{Binding Attachments.Count, Converter={StaticResource CountVisible}}" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9"
+                                                        VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <Path Data="{StaticResource IconEye}"
+                                                          Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
+                                                          Width="12" Height="12" Stretch="Uniform" />
+                                                    <TextBlock Text="{Binding Opens}" Classes="muted" FontSize="10.5" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <Path Data="{StaticResource IconClick}"
+                                                          Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
+                                                          Width="12" Height="12" Stretch="Uniform" />
+                                                    <TextBlock Text="{Binding Clicks}" Classes="muted" FontSize="10.5" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="3" Width="1" Background="Transparent"
+                          IsVisible="{Binding ShowMessageList}" />
+
+            <!-- Detail -->
+            <Grid Grid.Column="4" Background="{DynamicResource PanelBackground}">
+
+                <TextBlock Margin="24" TextWrapping="Wrap" Classes="secondary" VerticalAlignment="Top"
+                           IsVisible="{Binding !HasSelection}"
+                           Text="Select a message to read it, inspect the exact request the caller sent, and drive its opens, clicks and delivery state." />
+
+                <DockPanel IsVisible="{Binding HasSelection}">
+
+                    <StackPanel DockPanel.Dock="Top" Margin="20,14,20,0" Spacing="7">
+                        <TextBlock Text="{Binding SelectedMessage.Subject}" FontSize="17.5" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" />
+
+                        <WrapPanel>
+                            <TextBlock Text="{Binding SelectedMessage.FromEmail}" Classes="secondary"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="→" Classes="muted" Margin="8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SelectedMessage.ToEmail}" Classes="secondary"
+                                       Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <Border CornerRadius="3" Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center"
+                                    Background="{Binding SelectedMessage.StateWire, Converter={StaticResource StateBrush}}">
+                                <TextBlock Text="{Binding SelectedMessage.StateWire}" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{Binding SelectedMessage.StateWire, Converter={StaticResource StateBrush}, ConverterParameter=fg}" />
+                            </Border>
+                            <Border CornerRadius="3" Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center"
+                                    Background="{DynamicResource ChipBackground}">
+                                <TextBlock Text="{Binding SelectedMessage.DisplayTags}" FontSize="10"
+                                           Classes="secondary" />
+                            </Border>
+                            <Border CornerRadius="3" Padding="6,1" VerticalAlignment="Center"
+                                    Background="{DynamicResource ChipBackground}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="_id" Classes="mono muted" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedMessage.Id}" Classes="mono secondary"
+                                               FontSize="10" />
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+
+                        <TextBlock Text="{Binding ReceivedText}" Classes="muted" FontSize="12" />
+
+                        <Border CornerRadius="4" Padding="10,7" IsVisible="{Binding HasFailureDetail}"
+                                Background="#FDECEA" BorderBrush="#F2C3BE" BorderThickness="1">
+                            <TextBlock Text="{Binding FailureDetail}" Classes="mono" FontSize="11.5"
+                                       Foreground="#8E241D" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Interaction simulator -->
+                    <Border DockPanel.Dock="Top" Margin="20,13,20,0" CornerRadius="6" Padding="14,12"
+                            Background="{DynamicResource SimStripBackground}"
+                            BorderBrush="{DynamicResource SimStripBorder}" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <WrapPanel>
+                                <TextBlock Text="INTERACTION SIMULATOR" FontSize="11" FontWeight="Bold"
+                                           Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SimulatorSubtitle}" Classes="muted" FontSize="11"
+                                           Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </WrapPanel>
+
+                            <WrapPanel>
+                                <Button Classes="accent" Margin="0,0,7,6" Padding="9,5" Command="{Binding SimulateOpenCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Data="{StaticResource IconEye}" Stroke="{DynamicResource AccentText}"
+                                              StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" />
+                                        <TextBlock Text="Simulate open" Foreground="{DynamicResource AccentText}"
+                                                   FontWeight="SemiBold" FontSize="12.5" />
+                                        <Border Background="#38FFFFFF" CornerRadius="9" Padding="7,1">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <TextBlock Text="opens" FontSize="10.5"
+                                                           Foreground="{DynamicResource AccentText}" />
+                                                <TextBlock Text="{Binding SelectedMessage.Opens}" FontSize="10.5"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentText}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Classes="accent" Margin="0,0,7,6" Padding="9,5" Command="{Binding SimulateClickCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Data="{StaticResource IconClick}" Stroke="{DynamicResource AccentText}"
+                                              StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" />
+                                        <TextBlock Text="Simulate click" Foreground="{DynamicResource AccentText}"
+                                                   FontWeight="SemiBold" FontSize="12.5" />
+                                        <Border Background="#38FFFFFF" CornerRadius="9" Padding="7,1">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <TextBlock Text="clicks" FontSize="10.5"
+                                                           Foreground="{DynamicResource AccentText}" />
+                                                <TextBlock Text="{Binding SelectedMessage.Clicks}" FontSize="10.5"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentText}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <Border Margin="0,0,7,6" CornerRadius="4" Padding="8,2"
+                                        Background="{DynamicResource PanelBackground}"
+                                        BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1"
+                                        VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="Set state" Classes="secondary" FontSize="12.5"
+                                                   VerticalAlignment="Center" />
+                                        <ComboBox x:Name="StateBox" ItemsSource="{Binding AvailableStates}"
+                                                  SelectedItem="{Binding SelectedMessage.StateWire, Mode=OneWay}"
+                                                  SelectionChanged="OnStateSelectionChanged"
+                                                  BorderThickness="0" Background="Transparent"
+                                                  MinWidth="94" FontSize="12.5" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Margin="0,0,7,6" Padding="9,5">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Data="{StaticResource IconPlus}" Stroke="{DynamicResource TextSecondary}"
+                                              StrokeThickness="1.6" Width="12" Height="12" Stretch="Uniform" />
+                                        <TextBlock Text="Bounce reason…" FontSize="12.5" />
+                                    </StackPanel>
+                                    <Button.Flyout>
+                                        <Flyout>
+                                            <StackPanel Width="330" Spacing="9">
+                                                <TextBlock Text="Failure detail reported by messages/search"
+                                                           Classes="secondary" FontSize="12" TextWrapping="Wrap" />
+                                                <TextBox Text="{Binding BounceReasonDraft}"
+                                                         Watermark="smtp; 550 mailbox unavailable" />
+                                                <Button Classes="accent" HorizontalAlignment="Right"
+                                                        Content="Apply"
+                                                        Command="{Binding ApplyBounceReasonCommand}" />
+                                            </StackPanel>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+
+                                <Button Classes="ghost" Margin="0,0,0,6" Content="Reset counters"
+                                        Command="{Binding ResetCountersCommand}" />
+                            </WrapPanel>
+
+                            <Button Classes="link" HorizontalAlignment="Left" Command="{Binding ResendCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Resend to API" Foreground="{DynamicResource Accent}"
+                                               FontSize="12.5" />
+                                    <Path Data="{StaticResource IconExternal}" Stroke="{DynamicResource Accent}"
+                                          StrokeThickness="1.5" Width="12" Height="12" Stretch="Uniform" />
+                                </StackPanel>
+                            </Button>
+
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Data="{StaticResource IconInfo}" Stroke="{DynamicResource TextMuted}"
+                                      StrokeThickness="1.4" Width="13" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Top" Margin="0,1,0,0" />
+                                <TextBlock Classes="muted" FontSize="11.5" TextWrapping="Wrap" MaxWidth="820"
+                                           Text="These counters are what messages/search reports back for this _id. A polling job in the application under test picks them up on its next run." />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TabControl Margin="20,12,20,16">
+                        <TabItem Header="Preview">
+                            <Border BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1"
+                                    CornerRadius="4" Margin="0,8,0,0" ClipToBounds="True">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Top" Background="{DynamicResource CodeBackground}"
+                                            BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1"
+                                            Padding="10,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Path Data="{StaticResource IconInfo}"
+                                                  Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
+                                                  Width="13" Height="13" Stretch="Uniform" />
+                                            <TextBlock Classes="muted" FontSize="11.5"
+                                                       Text="Native WebView · scripts disabled, external navigation blocked · clicking a link inside the preview counts as a click" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Panel>
+                                        <NativeWebView x:Name="PreviewBrowser" Background="White" />
+                                        <TextBlock x:Name="PreviewFallback" Margin="20" TextWrapping="Wrap"
+                                                   Classes="secondary" IsVisible="False" />
+                                    </Panel>
+                                </DockPanel>
+                            </Border>
+                        </TabItem>
+
+                        <TabItem Header="HTML source">
+                            <TextBox Margin="0,8,0,0" Text="{Binding SelectedMessage.Html, Mode=OneWay}"
+                                     IsReadOnly="True" Classes="mono" FontFamily="{StaticResource MonoFont}"
+                                     FontSize="12" TextWrapping="NoWrap" AcceptsReturn="True"
+                                     Background="{DynamicResource CodeBackground}" />
+                        </TabItem>
+
+                        <TabItem Header="Headers">
+                            <ScrollViewer Margin="0,8,0,0">
+                                <ItemsControl ItemsSource="{Binding SelectedMessage.HeaderRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ColumnDefinitions="180,*" Margin="0,0,0,7">
+                                                <TextBlock Grid.Column="0" Text="{Binding Key}" Classes="secondary"
+                                                           FontSize="12.5" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Value}" Classes="mono"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <TextBlock Text="Attachments" />
+                                    <Border Background="{DynamicResource ChipBackground}" CornerRadius="8"
+                                            Padding="6,0" VerticalAlignment="Center"
+                                            IsVisible="{Binding SelectedAttachments.Count, Converter={StaticResource CountVisible}}">
+                                        <TextBlock Text="{Binding AttachmentCountText}" FontSize="10.5"
+                                                   Classes="secondary" />
+                                    </Border>
+                                </StackPanel>
+                            </TabItem.Header>
+
+                            <ScrollViewer Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="No attachments on this message." Classes="secondary"
+                                               Margin="2,8"
+                                               IsVisible="{Binding SelectedAttachments.Count, Converter={StaticResource CountVisible}, ConverterParameter=invert}" />
+
+                                    <ItemsControl ItemsSource="{Binding SelectedAttachments}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{DynamicResource BorderSoft}"
+                                                        BorderThickness="1" CornerRadius="4" Padding="11,8"
+                                                        Margin="0,0,0,6">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                        <Path Grid.Column="0" Data="{StaticResource IconPaperclip}"
+                                                              Stroke="{DynamicResource TextMuted}"
+                                                              StrokeThickness="1.5" Width="15" Height="15"
+                                                              Stretch="Uniform" Margin="0,0,11,0"
+                                                              VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="1" Spacing="2">
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                       FontSize="12.5" />
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <TextBlock Text="{Binding Type}" Classes="muted"
+                                                                           FontSize="11" />
+                                                                <TextBlock Text="·" Classes="muted" FontSize="11" />
+                                                                <TextBlock Classes="muted" FontSize="11"
+                                                                           Text="{Binding SizeBytes, Converter={StaticResource FileSize}}" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <Button Grid.Column="2" Content="Save as…" FontSize="12"
+                                                                Command="{Binding $parent[Window].DataContext.SaveAttachmentCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="EMBEDDED IMAGES (CID)" Classes="caption" Margin="0,12,0,7"
+                                               IsVisible="{Binding SelectedEmbeddedImages.Count, Converter={StaticResource CountVisible}}" />
+                                    <ItemsControl ItemsSource="{Binding SelectedEmbeddedImages}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{DynamicResource BorderSoft}"
+                                                        BorderThickness="1" CornerRadius="4" Padding="11,8"
+                                                        Margin="0,0,0,6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12.5" />
+                                                        <TextBlock Text="·" Classes="muted" />
+                                                        <TextBlock Classes="muted" FontSize="11.5"
+                                                                   Text="{Binding SizeBytes, Converter={StaticResource FileSize}}" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Raw JSON">
+                            <Grid Margin="0,8,0,0" RowDefinitions="*,Auto,*">
+                                <TextBox Grid.Row="0" Text="{Binding SelectedMessage.RawRequestJson, Mode=OneWay}"
+                                         IsReadOnly="True" FontFamily="{StaticResource MonoFont}" FontSize="12"
+                                         AcceptsReturn="True" TextWrapping="NoWrap"
+                                         Background="{DynamicResource CodeBackground}" />
+                                <TextBlock Grid.Row="1" Text="RESPONSE RETURNED TO THE CALLER" Classes="caption"
+                                           Margin="0,11,0,5" />
+                                <TextBox Grid.Row="2" Text="{Binding SelectedMessage.RawResponseJson, Mode=OneWay}"
+                                         IsReadOnly="True" FontFamily="{StaticResource MonoFont}" FontSize="12"
+                                         AcceptsReturn="True" TextWrapping="NoWrap"
+                                         Background="{DynamicResource CodeBackground}" />
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </DockPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="4" Background="{DynamicResource StatusBarBackground}"
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="12,0">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                             Fill="{DynamicResource RunningDot}" IsVisible="{Binding IsRunning}" />
+                    <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                             Fill="{DynamicResource StoppedDot}" IsVisible="{Binding !IsRunning}" />
+                    <TextBlock Text="{Binding ListeningStatusText}" Classes="secondary" FontSize="11.5" />
+                    <TextBlock Text="|" Classes="muted" FontSize="11" />
+                    <TextBlock Text="{Binding MessageCountText}" Classes="secondary" FontSize="11.5" />
+                    <TextBlock Text="|" Classes="muted" FontSize="11" />
+                    <TextBlock Text="{Binding StoreText}" Classes="secondary" FontSize="11.5" />
+                    <TextBlock Text="|" Classes="muted" FontSize="11" />
+                    <TextBlock Text="{Binding LastRequestText}" Classes="secondary" FontSize="11.5" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Classes="muted" FontSize="11.5"
+                           Margin="16,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                    <TextBlock Text="Loopback only" Classes="muted" FontSize="11.5" />
+                    <TextBlock Text="{Binding VersionText}" Classes="muted" FontSize="11.5" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

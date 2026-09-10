@@ -9,13 +9,15 @@ public class SampleMessageSender
 {
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(10) };
 
-    public async Task SendAsync(string baseUrl)
+    public Task SendAsync(string baseUrl) => SendRawAsync(baseUrl, BuildPayload());
+
+    // Replays an exact captured body, which is what the inbox's Resend uses.
+    public async Task SendRawAsync(string baseUrl, string payload)
     {
-        var payload = BuildPayload();
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
 
         // Deliberately concatenated the way a caller building "base + /path" does,
-        // so the sample also exercises the double-slash normalisation.
+        // so this also exercises the double-slash normalisation.
         var url = baseUrl + "/messages/send.json";
         using var response = await Client.PostAsync(url, content).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
