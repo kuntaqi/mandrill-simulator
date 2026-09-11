@@ -45,10 +45,10 @@
                 <MenuItem Header="Clear all messages" Command="{Binding ClearAllCommand}" />
             </MenuItem>
             <MenuItem Header="_View">
-                <MenuItem Header="Dark theme" ToggleType="CheckBox" IsChecked="{Binding IsDarkTheme}" />
+                <MenuItem Header="Dark theme" ToggleType="CheckBox" IsChecked="{Binding IsDarkTheme, Mode=TwoWay}" />
                 <Separator />
-                <MenuItem Header="Sidebar" ToggleType="CheckBox" IsChecked="{Binding ShowSidebar}" />
-                <MenuItem Header="Message list" ToggleType="CheckBox" IsChecked="{Binding ShowMessageList}" />
+                <MenuItem Header="Sidebar" ToggleType="CheckBox" IsChecked="{Binding ShowSidebar, Mode=TwoWay}" />
+                <MenuItem Header="Message list" ToggleType="CheckBox" IsChecked="{Binding ShowMessageList, Mode=TwoWay}" />
             </MenuItem>
             <MenuItem Header="_Server">
                 <MenuItem Header="Start" Command="{Binding StartServerCommand}" />
@@ -131,9 +131,9 @@
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
-                                <MenuItem Header="Sidebar" ToggleType="CheckBox" IsChecked="{Binding ShowSidebar}" />
+                                <MenuItem Header="Sidebar" ToggleType="CheckBox" IsChecked="{Binding ShowSidebar, Mode=TwoWay}" />
                                 <MenuItem Header="Message list" ToggleType="CheckBox"
-                                          IsChecked="{Binding ShowMessageList}" />
+                                          IsChecked="{Binding ShowMessageList, Mode=TwoWay}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
