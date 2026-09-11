@@ -75,6 +75,15 @@ dotnet run --project src/MandrillSimulator
 
 The listener starts automatically on `http://localhost:8025/`. Change the port in the rail.
 
+## Versioning
+
+The git tag is the only place a release version is written. Tagging `v0.4.0` makes the release
+workflow stamp the assembly and the installer with `0.4.0`, and the status bar reads it back from the
+assembly at runtime — so the number cannot drift between what is installed and what the app claims.
+
+Nothing increments it for you: pick the number when you tag. `<Version>` in the csproj is only the
+fallback for local builds.
+
 ## Building the installers
 
 CI does this on a tag (`.github/workflows/release.yml`), one runner per platform. By hand, for the

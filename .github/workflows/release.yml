@@ -60,7 +60,9 @@ jobs:
       # runtime first. Never add trimming here — the XAML uses reflection
       # bindings and the trimmer would strip them silently.
       - name: Publish
-        run: dotnet publish src/MandrillSimulator -c Release -r ${{ matrix.rid }} --self-contained -o publish
+        run: >
+          dotnet publish src/MandrillSimulator -c Release -r ${{ matrix.rid }} --self-contained -o publish
+          -p:Version=${{ steps.version.outputs.value }}
 
       - name: Pack installer
         run: >

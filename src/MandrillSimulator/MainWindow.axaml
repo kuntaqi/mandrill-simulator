@@ -87,7 +87,7 @@
                         <TextBox Grid.Column="1" Text="{Binding SearchText}" BorderThickness="0"
                                  Background="Transparent" Padding="6,0,6,0" FontSize="12.5"
                                  VerticalAlignment="Center" VerticalContentAlignment="Center"
-                                 Watermark="Search recipient, subject, _id…" />
+                                 PlaceholderText="Search recipient, subject, _id…" />
                     </Grid>
                 </Border>
 
@@ -537,7 +537,7 @@
                                                 <TextBlock Text="Failure detail reported by messages/search"
                                                            Classes="secondary" FontSize="12" TextWrapping="Wrap" />
                                                 <TextBox Text="{Binding BounceReasonDraft}"
-                                                         Watermark="smtp; 550 mailbox unavailable" />
+                                                         PlaceholderText="smtp; 550 mailbox unavailable" />
                                                 <Button Classes="accent" HorizontalAlignment="Right"
                                                         Content="Apply"
                                                         Command="{Binding ApplyBounceReasonCommand}" />

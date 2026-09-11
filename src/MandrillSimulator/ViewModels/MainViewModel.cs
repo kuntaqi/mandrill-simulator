@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reflection;
 using System.Text;
 using Avalonia.Threading;
 using MandrillSimulator.Api;
@@ -146,7 +147,10 @@ public class MainViewModel : ObservableObject
 
     public string ShortUrl => $"http://localhost:{Port}";
 
-    public string VersionText => "v0.3.0 · .NET 10";
+    // Read from the assembly rather than written here: the release workflow
+    // stamps it from the tag, so a hand-kept literal would drift the moment a
+    // version is tagged without someone remembering to edit this line.
+    public string VersionText { get; } = BuildVersionText();
 
     public string StoreText => "Store: in-memory (this session)";
 
@@ -643,6 +647,21 @@ public class MainViewModel : ObservableObject
         var hit = EndpointHits.FirstOrDefault(h => SimulatorServer.NormalisePath(h.Path) == entry.Route);
         if (hit is not null) hit.Hits++;
     });
+
+    private static string BuildVersionText()
+    {
+        // Deliberately this assembly, not the entry assembly: under a test host
+        // the entry assembly is the runner, and its version means nothing here.
+        var informational = typeof(MainViewModel).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        // The SDK appends "+<commit sha>" to the informational version.
+        var version = informational?.Split('+')[0];
+        if (string.IsNullOrWhiteSpace(version)) version = "dev";
+
+        return $"v{version} · .NET {Environment.Version.Major}";
+    }
 
     private static string Humanise(MessageState state) =>
         state == MessageState.SoftBounced ? "Soft-bounced" : state.ToString();

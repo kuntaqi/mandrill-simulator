@@ -13,7 +13,7 @@ namespace MandrillSimulator.Tests;
 // These load the real XAML, so the binding mode itself is what is under test.
 public class MenuToggleTests
 {
-    private static readonly HeadlessUnitTestSession Session =
+    internal static readonly HeadlessUnitTestSession Session =
         HeadlessUnitTestSession.StartNew(typeof(HeadlessApp));
 
     [Theory]
