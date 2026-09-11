@@ -64,6 +64,8 @@
                 <MenuItem Header="Fail the next API call (500)" Command="{Binding FailNextRequestCommand}" />
             </MenuItem>
             <MenuItem Header="_Help">
+                <MenuItem Header="Check for updates…" Command="{Binding CheckForUpdatesCommand}" />
+                <Separator />
                 <MenuItem Header="About" Click="OnAbout" />
             </MenuItem>
         </Menu>

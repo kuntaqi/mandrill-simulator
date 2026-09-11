@@ -15,6 +15,7 @@ public class MainViewModel : ObservableObject
     private readonly SettingsService _settingsService = new();
     private readonly ConfigConnector _connector = new();
     private readonly SampleMessageSender _sampleSender = new();
+    private readonly UpdateService _updates = new();
     private readonly SimulatorServer _server;
     private readonly List<CapturedMessage> _all = [];
     private readonly DispatcherTimer _uptimeTimer;
@@ -104,6 +105,7 @@ public class MainViewModel : ObservableObject
             if (p is CapturedAttachment attachment) SaveAttachmentRequested?.Invoke(this, attachment);
         });
         ExportSessionCommand = new RelayCommand(_ => ExportSessionRequested?.Invoke(this, BuildSessionExport()));
+        CheckForUpdatesCommand = new RelayCommand(async _ => await CheckForUpdatesAsync());
     }
 
     public ObservableCollection<CapturedMessage> Messages { get; } = [];
@@ -130,6 +132,7 @@ public class MainViewModel : ObservableObject
     public RelayCommand DisconnectProjectCommand { get; }
     public RelayCommand SaveAttachmentCommand { get; }
     public RelayCommand ExportSessionCommand { get; }
+    public RelayCommand CheckForUpdatesCommand { get; }
 
     public event EventHandler<CapturedMessage?>? SelectionChanged;
     public event EventHandler<bool>? ThemeChanged;
@@ -143,7 +146,7 @@ public class MainViewModel : ObservableObject
 
     public string ShortUrl => $"http://localhost:{Port}";
 
-    public string VersionText => "v0.2.0 · .NET 10";
+    public string VersionText => "v0.3.0 · .NET 10";
 
     public string StoreText => "Store: in-memory (this session)";
 
@@ -535,6 +538,12 @@ public class MainViewModel : ObservableObject
         Raise(nameof(HasFailureDetail));
         Raise(nameof(FailureDetail));
         StatusMessage = "Failure detail updated.";
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        StatusMessage = "Checking for updates…";
+        StatusMessage = await _updates.CheckAndApplyAsync(_settings.UpdateFeedUrl, _settings.UpdateFeedToken);
     }
 
     private async Task SendSampleAsync()

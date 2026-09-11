@@ -1,0 +1,118 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build, without the leading v (e.g. 0.3.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            rid: win-x64
+            channel: win
+          - os: macos-latest
+            name: macos
+            rid: osx-arm64
+            channel: osx
+          - os: ubuntu-latest
+            name: linux
+            rid: linux-x64
+            channel: linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Velopack CLI
+        run: dotnet tool install --global vpk --version 1.2.0
+
+      # Self-contained on purpose: the app must not ask a tester to install a
+      # runtime first. Never add trimming here — the XAML uses reflection
+      # bindings and the trimmer would strip them silently.
+      - name: Publish
+        run: dotnet publish src/MandrillSimulator -c Release -r ${{ matrix.rid }} --self-contained -o publish
+
+      - name: Pack installer
+        run: >
+          vpk pack
+          --packId MandrillSimulator
+          --packVersion ${{ steps.version.outputs.value }}
+          --packDir publish
+          --mainExe MandrillSimulator
+          --packTitle "Mandrill Simulator"
+          --packAuthors "kuntaqi"
+          --runtime ${{ matrix.rid }}
+          --channel ${{ matrix.channel }}
+          --outputDir releases
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: releases/*
+
+  publish:
+    needs: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ -n "${{ github.event.inputs.version }}" ] && version="${{ github.event.inputs.version }}"
+
+          cat > notes.md <<'EOF'
+          ## Install
+
+          **Windows** — download `MandrillSimulator-win-Setup.exe` and run it. It installs per user,
+          needs no administrator rights, and adds a Start Menu entry. Windows SmartScreen will warn
+          the first time because the build is not code-signed; choose *More info* then *Run anyway*.
+
+          **macOS and Linux — beta.** These builds compile and pack in CI but have not yet been
+          installed or run on a real machine. Treat them as untested.
+
+          - macOS: `MandrillSimulator-osx-Setup.pkg` (Gatekeeper will block an unsigned package;
+            right-click ▸ Open, or clear the quarantine attribute)
+          - Linux: the `.AppImage` — `chmod +x` it first. The HTML preview needs WebKitGTK
+            (`sudo apt install libwebkit2gtk-4.1-0`); without it the app still runs and the preview
+            tab says so.
+
+          A portable zip is attached for anyone who would rather not install anything.
+          EOF
+
+          gh release create "v$version" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Mandrill Simulator $version" \
+            --notes-file notes.md \
+            $(find artifacts -type f | tr '\n' ' ')

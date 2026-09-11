@@ -36,6 +36,25 @@ Details that matter if you are comparing against the real API:
   `/` with a path starting with `/` puts `//messages/send.json` on the wire, and an `/api/1.0/`
   prefix, a trailing slash or a missing `.json` are all accepted.
 
+## Installing
+
+Grab the latest [release](../../releases).
+
+**Windows** — run `MandrillSimulator-win-Setup.exe`. It installs per user under
+`%LocalAppData%\MandrillSimulator`, needs no administrator rights, and adds a Start Menu entry and an
+uninstall entry. The build is not code-signed, so SmartScreen warns the first time: *More info* ▸
+*Run anyway*.
+
+**macOS and Linux — beta.** Those packages are built in CI but have not been installed or run on a
+real machine yet.
+
+A portable zip is attached to every release for anyone who would rather not install anything.
+
+*Check for updates…* under Help updates an installed copy in place. It needs a reachable feed: set
+`UpdateFeedUrl` (and `UpdateFeedToken` for a private repository) in
+`%AppData%\MandrillSimulator\settings.json`. While this repository is private, a plain GitHub feed
+will answer 404 without a token.
+
 ## Requirements
 
 Windows, macOS and Linux. The UI is [Avalonia](https://avaloniaui.net/), so one codebase covers all
@@ -57,16 +76,21 @@ dotnet run --project src/MandrillSimulator
 
 The listener starts automatically on `http://localhost:8025/`. Change the port in the rail.
 
-To hand a colleague a copy that needs no .NET runtime installed, publish for their platform:
+## Building the installers
+
+CI does this on a tag (`.github/workflows/release.yml`), one runner per platform. By hand, for the
+platform you are on:
 
 ```
-dotnet publish src/MandrillSimulator -c Release -r win-x64   --self-contained -o publish/win
-dotnet publish src/MandrillSimulator -c Release -r osx-arm64 --self-contained -o publish/mac
-dotnet publish src/MandrillSimulator -c Release -r linux-x64 --self-contained -o publish/linux
+dotnet tool install --global vpk --version 1.2.0
+dotnet publish src/MandrillSimulator -c Release -r win-x64 --self-contained -o publish
+vpk pack --packId MandrillSimulator --packVersion 0.3.0 --packDir publish --mainExe MandrillSimulator.exe --runtime win-x64 -o releases
 ```
 
-Adding `-p:PublishSingleFile=true` folds most of it into one binary, but a few native libraries
-cannot be embedded — zip the whole output folder, not just the executable.
+The published folder is ~207 MB and the setup bundle compresses to ~54 MB.
+
+**Do not add trimming.** The XAML uses reflection bindings, and the trimmer strips what they need
+without failing the build — the app compiles, installs, and then falls apart at runtime.
 
 ## Pointing an application at it
 
