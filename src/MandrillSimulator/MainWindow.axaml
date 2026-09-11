@@ -7,9 +7,7 @@
         MinWidth="1040" MinHeight="620"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackground}"
-        FontFamily="{StaticResource UiFont}"
-        ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaTitleBarHeightHint="36">
+        FontFamily="{StaticResource UiFont}">
 
     <Window.Resources>
         <x:Double x:Key="RailWidth">266</x:Double>
@@ -17,11 +15,15 @@
 
     <Grid RowDefinitions="36,30,41,*,25">
 
-        <!-- Title bar. Avalonia draws the icon, title and window buttons into the
-             extended chrome; this row adds the chip beside them and starts the drag. -->
+        <!-- App header. The window keeps its native title bar: extending the client
+             area cost the caption buttons, and the three platforms each draw that
+             area differently, so this is a plain row of our own instead. -->
         <Border Grid.Row="0" Background="{DynamicResource TitleBarBackground}"
-                PointerPressed="OnTitleBarPressed">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="150,0,0,0">
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0" Spacing="9">
+                <Path Data="{StaticResource IconMail}" Stroke="{DynamicResource TextSecondary}"
+                      StrokeThickness="1.4" Width="15" Height="15" Stretch="Uniform" />
+                <TextBlock Text="Mandrill Simulator" FontSize="12.5" VerticalAlignment="Center" />
                 <Border Background="{DynamicResource DevChipBackground}" CornerRadius="3" Padding="7,2"
                         VerticalAlignment="Center">
                     <TextBlock Text="LOCAL / DEV ONLY" FontSize="10" FontWeight="Bold"

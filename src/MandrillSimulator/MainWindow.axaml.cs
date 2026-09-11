@@ -135,11 +135,6 @@ public partial class MainWindow : Window
         Application.Current.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
     }
 
-    private void OnTitleBarPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) BeginMoveDrag(e);
-    }
-
     private async void OnCopyUrl(object? sender, RoutedEventArgs e)
     {
         var clipboard = GetTopLevel(this)?.Clipboard;
