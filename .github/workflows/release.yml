@@ -6,14 +6,55 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build, without the leading v (e.g. 0.3.0)'
-        required: true
+        description: 'Override the version (leave empty to bump the minor automatically)'
+        required: false
 
 permissions:
   contents: write
 
 jobs:
+  # Worked out once and handed to the others: three runners computing it
+  # separately could disagree, and the tag has to match what was built.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.pick.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            value="${{ github.event.inputs.version }}"
+            echo "Using the version given by hand: $value"
+          elif [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            value="${GITHUB_REF_NAME#v}"
+            echo "Using the pushed tag: $value"
+          else
+            major="$(tr -cd '0-9' < version.txt)"
+            [ -n "$major" ] || { echo "version.txt holds no number"; exit 1; }
+
+            # Highest minor already released for this major. A freshly bumped
+            # major has no tags yet, so its minor starts at 0.
+            latest="$(git tag -l "v${major}.*" \
+              | sed -E "s/^v${major}\.([0-9]+).*/\1/" \
+              | grep -E '^[0-9]+$' \
+              | sort -n | tail -1 || true)"
+
+            if [ -z "$latest" ]; then next=0; else next=$((latest + 1)); fi
+            value="${major}.${next}.0"
+            echo "Major $major from version.txt, previous minor '${latest:-none}' -> $value"
+          fi
+
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+
   pack:
+    needs: version
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -43,16 +84,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Work out the version
-        id: version
-        shell: bash
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk --version 1.2.0
 
@@ -62,13 +93,13 @@ jobs:
       - name: Publish
         run: >
           dotnet publish src/MandrillSimulator -c Release -r ${{ matrix.rid }} --self-contained -o publish
-          -p:Version=${{ steps.version.outputs.value }}
+          -p:Version=${{ needs.version.outputs.value }}
 
       - name: Pack installer
         run: >
           vpk pack
           --packId MandrillSimulator
-          --packVersion ${{ steps.version.outputs.value }}
+          --packVersion ${{ needs.version.outputs.value }}
           --packDir publish
           --mainExe ${{ matrix.mainExe }}
           --packTitle "Mandrill Simulator"
@@ -83,7 +114,7 @@ jobs:
           path: releases/*
 
   publish:
-    needs: pack
+    needs: [version, pack]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -93,9 +124,9 @@ jobs:
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.value }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          [ -n "${{ github.event.inputs.version }}" ] && version="${{ github.event.inputs.version }}"
+          set -euo pipefail
 
           cat > notes.md <<'EOF'
           ## Install
@@ -116,8 +147,8 @@ jobs:
           A portable zip is attached for anyone who would rather not install anything.
           EOF
 
-          gh release create "v$version" \
+          gh release create "v$VERSION" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Mandrill Simulator $version" \
+            --title "Mandrill Simulator $VERSION" \
             --notes-file notes.md \
             $(find artifacts -type f | tr '\n' ' ')

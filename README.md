@@ -77,12 +77,24 @@ The listener starts automatically on `http://localhost:8025/`. Change the port i
 
 ## Versioning
 
-The git tag is the only place a release version is written. Tagging `v0.4.0` makes the release
-workflow stamp the assembly and the installer with `0.4.0`, and the status bar reads it back from the
-assembly at runtime — so the number cannot drift between what is installed and what the app claims.
+Run the **release** workflow and the minor version bumps itself: the major comes from `version.txt`,
+the minor is one past the highest `v<major>.*` tag already released, and the patch is `0`.
 
-Nothing increments it for you: pick the number when you tag. `<Version>` in the csproj is only the
-fallback for local builds.
+Bumping the major is a one-character edit. Put `1` in `version.txt` and the next release is `1.0.0` —
+the minor restarts on its own, because no `v1.*` tag exists yet.
+
+| `version.txt` | Latest tag | Next release |
+|---|---|---|
+| `0` | `v0.3.0` | `0.4.0` |
+| `0` | `v0.9.0` | `0.10.0` |
+| `1` | `v0.9.0` | `1.0.0` |
+
+To pin a specific number instead, give the workflow a version, or push a `v*` tag and it is used
+as-is.
+
+Whatever the number ends up being, it is stamped into the assembly and the installer from one place,
+and the status bar reads it back from the assembly at runtime — so what is installed and what the app
+claims cannot drift apart. `<Version>` in the csproj is only the fallback for local builds.
 
 ## Building the installers
 
