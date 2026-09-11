@@ -24,14 +24,17 @@ jobs:
             name: windows
             rid: win-x64
             channel: win
+            mainExe: MandrillSimulator.exe
           - os: macos-latest
             name: macos
             rid: osx-arm64
             channel: osx
+            mainExe: MandrillSimulator
           - os: ubuntu-latest
             name: linux
             rid: linux-x64
             channel: linux
+            mainExe: MandrillSimulator
 
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +68,7 @@ jobs:
           --packId MandrillSimulator
           --packVersion ${{ steps.version.outputs.value }}
           --packDir publish
-          --mainExe MandrillSimulator
+          --mainExe ${{ matrix.mainExe }}
           --packTitle "Mandrill Simulator"
           --packAuthors "kuntaqi"
           --runtime ${{ matrix.rid }}
