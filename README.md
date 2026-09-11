@@ -50,10 +50,9 @@ real machine yet.
 
 A portable zip is attached to every release for anyone who would rather not install anything.
 
-*Check for updates…* under Help updates an installed copy in place. It needs a reachable feed: set
-`UpdateFeedUrl` (and `UpdateFeedToken` for a private repository) in
-`%AppData%\MandrillSimulator\settings.json`. While this repository is private, a plain GitHub feed
-will answer 404 without a token.
+*Check for updates…* under Help updates an installed copy in place, straight from this repository's
+releases. To point it elsewhere — a mirror, a file share — set `UpdateFeedUrl` (and
+`UpdateFeedToken` if that feed needs one) in `%AppData%\MandrillSimulator\settings.json`.
 
 ## Requirements
 

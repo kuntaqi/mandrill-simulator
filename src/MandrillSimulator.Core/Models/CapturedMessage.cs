@@ -11,9 +11,9 @@ public class CapturedMessage : INotifyPropertyChanged
     private string? _rejectReason;
     private string? _bounceDescription;
 
-    // Mandrill message ids are 32 lowercase hex characters. Callers persist this
-    // value against their own records and match
-    // on it later via messages/search, so it must stay stable for the message's life.
+    // Mandrill message ids are 32 lowercase hex characters. Callers typically
+    // persist this value against their own records and match on it later via
+    // messages/search, so it must stay stable for the message's whole life.
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
 
     public DateTimeOffset ReceivedAt { get; init; } = DateTimeOffset.Now;
